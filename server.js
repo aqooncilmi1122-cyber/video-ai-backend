@@ -1,25 +1,20 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
+import bodyParser from "body-parser";
 import { OpenAI } from "openai";
-
-dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-// تأكد أن المفتاح موجود
-if (!process.env.OPENAI_API_KEY) {
-  console.error("❌ ERROR: Missing OPENAI_API_KEY");
-  process.exit(1);
-}
-
+// *************
+//  Important: API KEY from Render Environment variable
+// *************
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// نقطة إنشاء الفيديو
+// ************* Generate Video Endpoint *************
 app.post("/generate-video", async (req, res) => {
   try {
     const { script, language, length_seconds, voice } = req.body;
@@ -28,36 +23,33 @@ app.post("/generate-video", async (req, res) => {
       return res.status(400).json({ error: "Script text is required" });
     }
 
-    console.log("🎬 Creating video…");
+    console.log("➡️ Request received:", req.body);
 
-    // إنشاء فيديو حقيقي
-    const response = await client.videos.generate({
-      model: "gpt-4o-mini-tts",
+    // OpenAI video generation API
+    const video = await client.videos.generate({
+      model: "gpt-video-1",
       prompt: script,
-      duration: length_seconds || 10,
-      voice: voice ? "alloy" : null,
       aspect_ratio: "16:9",
+      duration: length_seconds || 10,
+      voice: voice ? { enabled: true } : { enabled: false },
+      language: language || "en",
     });
 
-    if (!response || !response.video_url) {
-      return res.status(500).json({ error: "Video generation failed" });
-    }
+    console.log("🎬 Video created.");
 
-    res.json({
-      success: true,
-      videoUrl: response.video_url,
-    });
+    // استخراج url
+    const video_url = video.data[0].url;
+
+    return res.json({ videoUrl: video_url });
 
   } catch (err) {
     console.error("❌ ERROR:", err);
-    res.status(500).json({
-      error: err.message || "Server error",
-    });
+    return res.status(500).json({ error: err.message || "Server error" });
   }
 });
 
-// تشغيل السيرفر
+// ************* Server Listen *************
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`🚀 Video backend running on port ${PORT}`);
+  console.log(`🚀 Video AI backend running on port ${PORT}`);
 });
