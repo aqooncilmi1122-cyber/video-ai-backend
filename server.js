@@ -1,39 +1,63 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
+import { OpenAI } from "openai";
+
+dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// للتأكد أن السيرفر يشتغل
-app.get("/", (req, res) => {
-  res.send("✅ Video AI backend is running");
+// تأكد أن المفتاح موجود
+if (!process.env.OPENAI_API_KEY) {
+  console.error("❌ ERROR: Missing OPENAI_API_KEY");
+  process.exit(1);
+}
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// API الأساسية التي سيستدعيها تطبيقك
-app.post("/api/generate-video", (req, res) => {
-  const { script, language, length_seconds, voice } = req.body || {};
+// نقطة إنشاء الفيديو
+app.post("/generate-video", async (req, res) => {
+  try {
+    const { script, language, length_seconds, voice } = req.body;
 
-  console.log("📩 New request:", { script, language, length_seconds, voice });
-
-  if (!script) {
-    return res.status(400).json({ error: "script is required" });
-  }
-
-  // فيديو حقيقي تجريبي – لاحقًا نستبدله بفيديو AI
-  const demoVideoUrl = "https://www.w3schools.com/html/mov_bbb.mp4";
-
-  res.json({
-    videoUrl: demoVideoUrl,
-    info: {
-      language,
-      length_seconds,
-      voice: !!voice
+    if (!script) {
+      return res.status(400).json({ error: "Script text is required" });
     }
-  });
+
+    console.log("🎬 Creating video…");
+
+    // إنشاء فيديو حقيقي
+    const response = await client.videos.generate({
+      model: "gpt-4o-mini-tts",
+      prompt: script,
+      duration: length_seconds || 10,
+      voice: voice ? "alloy" : null,
+      aspect_ratio: "16:9",
+    });
+
+    if (!response || !response.video_url) {
+      return res.status(500).json({ error: "Video generation failed" });
+    }
+
+    res.json({
+      success: true,
+      videoUrl: response.video_url,
+    });
+
+  } catch (err) {
+    console.error("❌ ERROR:", err);
+    res.status(500).json({
+      error: err.message || "Server error",
+    });
+  }
 });
 
-const PORT = process.env.PORT || 3000;
+// تشغيل السيرفر
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log("🚀 Video AI backend running on port " + PORT);
+  console.log(`🚀 Video backend running on port ${PORT}`);
 });
