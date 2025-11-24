@@ -3,7 +3,6 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import Redis from "ioredis";
 import dotenv from "dotenv";
-import fetch from "node-fetch";
 
 dotenv.config();
 
@@ -11,7 +10,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// ---------------- Redis (اختياري لكن مفعّل) ----------------
+// ---------------- Redis (اختياري) ----------------
 const redisUrl = process.env.REDIS_URL;
 let redis = null;
 
@@ -45,51 +44,15 @@ async function safeGetRedis(key) {
   }
 }
 
-// ---------- دالة توليد فيديو حقيقي عبر API خارجية ----------
-async function generateRealVideo(prompt, duration, ratio, style) {
-  const apiUrl = process.env.VIDEO_API_URL;   // رابط خدمة الفيديو
-  const apiKey = process.env.VIDEO_API_KEY;   // API Key من مزود الخدمة
-
-  if (!apiUrl || !apiKey) {
-    throw new Error("VIDEO_API_URL or VIDEO_API_KEY is missing");
-  }
-
-  // 👇 عدّل الـ body حسب متطلبات الخدمة التي ستستخدمها
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      prompt,                 // السكريبت/الوصف
-      duration,               // المدة (ثواني أو دقائق)
-      aspect_ratio: ratio,    // 16:9 أو 9:16 ...
-      style                   // نمط الفيديو: cinematic, anime...
-    })
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    console.error("Video API error:", response.status, text);
-    throw new Error("Video API request failed");
-  }
-
-  const data = await response.json();
-
-  // 👇 غيّر اسم الحقل حسب الـ API (مثلاً data.result.url أو data.video.url ...)
-  const videoUrl = data.video_url;
-
-  if (!videoUrl) {
-    throw new Error("video_url not found in API response");
-  }
-
-  return videoUrl;
+// --------------- دالة فيديو ديمو (مؤقتًا) ---------------
+async function generateVideoDemo() {
+  // فيديو قصير جاهز للتجربة فقط
+  return "https://samplelib.com/lib/preview/mp4/sample-5s.mp4";
 }
 
 // --------------- Health check ---------------
 app.get("/", (req, res) => {
-  res.send("AI Video Backend is running ✅");
+  res.send("AI Video Backend DEMO is running ✅");
 });
 
 app.get("/health", (req, res) => {
@@ -114,28 +77,16 @@ app.post("/api/generate-video", async (req, res) => {
     status: "processing"
   });
 
-  try {
-    const videoUrl = await generateRealVideo(
-      prompt,
-      duration || 120,    // عدد الثواني (مثلاً 120 = دقيقتين)
-      ratio || "16:9",
-      style || "cinematic"
-    );
+  // 🔥 هنا الآن نستخدم فيديو تجريبي فقط
+  const videoUrl = await generateVideoDemo();
 
-    await safeSetRedis(jobId, {
-      prompt,
-      status: "done",
-      videoUrl
-    });
+  await safeSetRedis(jobId, {
+    prompt,
+    status: "done",
+    videoUrl
+  });
 
-    res.json({ jobId, videoUrl });
-  } catch (err) {
-    console.error("generate-video error:", err.message);
-    res.status(500).json({
-      error: "Failed to generate video",
-      details: err.message
-    });
-  }
+  res.json({ jobId, videoUrl });
 });
 
 // --------------- API حالة الطلب ---------------
@@ -147,4 +98,4 @@ app.get("/api/status/:id", async (req, res) => {
 
 // --------------- تشغيل السيرفر ---------------
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Backend running on port", PORT));
+app.listen(PORT, () => console.log("Backend DEMO running on port", PORT));
