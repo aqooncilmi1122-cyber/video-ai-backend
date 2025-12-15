@@ -1,15 +1,26 @@
-// ===== Replicate client =====
+import express from "express";
+import cors from "cors";
+import Replicate from "replicate";
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Replicate client
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
-// ===== Generate video route =====
+// Generate video route
 app.post("/api/generate", async (req, res) => {
   try {
     const { prompt } = req.body;
 
     if (!prompt) {
-      return res.status(400).json({ success: false, message: "Missing prompt" });
+      return res.status(400).json({
+        success: false,
+        message: "Missing prompt",
+      });
     }
 
     const output = await replicate.run(
@@ -17,22 +28,27 @@ app.post("/api/generate", async (req, res) => {
       {
         input: {
           prompt,
-          num_frames: 16
-        }
+          num_frames: 16,
+        },
       }
     );
 
-    return res.json({
+    res.json({
       success: true,
       videoUrl: output[0],
     });
 
   } catch (err) {
     console.error("Replicate error:", err);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: "Replicate error",
-      details: err.message,
+      message: err.message,
     });
   }
+});
+
+// Start server
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
 });
