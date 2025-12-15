@@ -13,11 +13,10 @@ app.post("/api/generate", async (req, res) => {
     const { prompt } = req.body;
 
     const output = await replicate.run(
-      "luma/ray-2",
+      "luma/dream-machine",
       {
         input: {
-          prompt: prompt,
-          duration: 4
+          prompt: prompt
         }
       }
     );
