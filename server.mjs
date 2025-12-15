@@ -3,15 +3,23 @@ import cors from "cors";
 import Replicate from "replicate";
 
 const app = express();
+const PORT = process.env.PORT || 10000;
+
+// ===== Middlewares =====
 app.use(cors());
 app.use(express.json());
 
-// Replicate client
+// ===== Replicate client =====
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
-// Generate video route
+// ===== Test route =====
+app.get("/", (req, res) => {
+  res.json({ status: "API is running ✅" });
+});
+
+// ===== Generate video route =====
 app.post("/api/generate", async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -24,31 +32,30 @@ app.post("/api/generate", async (req, res) => {
     }
 
     const output = await replicate.run(
-      "lucataco/animate-diff",
+      "luma/reframe-video",
       {
         input: {
-          prompt,
-          num_frames: 16,
+          prompt: prompt,
         },
       }
     );
 
-    res.json({
+    return res.json({
       success: true,
-      videoUrl: output[0],
+      videoUrl: output,
     });
 
-  } catch (err) {
-    console.error("Replicate error:", err);
-    res.status(500).json({
+  } catch (error) {
+    console.error("Replicate error:", error);
+    return res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Video generation failed",
+      details: error.message,
     });
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 10000;
+// ===== Start server =====
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log(`Server running on port ${PORT}`);
 });
