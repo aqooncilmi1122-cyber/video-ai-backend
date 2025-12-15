@@ -3,8 +3,6 @@ import cors from "cors";
 import Replicate from "replicate";
 
 const app = express();
-const PORT = process.env.PORT || 10000;
-
 app.use(cors());
 app.use(express.json());
 
@@ -24,23 +22,26 @@ app.post("/api/generate", async (req, res) => {
     }
 
     const output = await replicate.run(
-      "stability-ai/stable-video-diffusion",
+      "wan-video/wan-video-14b",
       {
         input: {
           prompt,
-        },
+          num_frames: 16,
+          fps: 8
+        }
       }
     );
 
-    res.json({
-      videoUrl: output[0],
-    });
+    const videoUrl = Array.isArray(output) ? output[0] : output;
+
+    res.json({ videoUrl });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
