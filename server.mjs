@@ -41,7 +41,6 @@ app.post("/api/generate", async (req, res) => {
       }
     );
 
-    // Extract video URL safely
     const videoUrl =
       output?.video || (Array.isArray(output) ? output[0] : null);
 
