@@ -16,12 +16,12 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
-// ====== Health check route ======
+// ====== Health check ======
 app.get("/", (req, res) => {
-  res.json({ status: "✅ API is running fine" });
+  res.json({ status: "✅ API is running" });
 });
 
-// ====== Text-to-Video route ======
+// ====== TEXT ➜ VIDEO (REAL) ======
 app.post("/api/generate", async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -29,45 +29,39 @@ app.post("/api/generate", async (req, res) => {
     if (!prompt) {
       return res.status(400).json({
         success: false,
-        message: "❌ Missing prompt in request body",
+        message: "Missing prompt",
       });
     }
 
-    // === Choose your video model ===
-    // يمكنك تجربة أي واحد من التالي:
-    // "luma/reframe-video"
-    // "stability-ai/stable-video-diffusion"
-    const model = "luma/reframe-video";
+    const output = await replicate.run(
+      "stability-ai/stable-video-diffusion",
+      {
+        input: {
+          prompt,
+          num_frames: 24,
+          fps: 8,
+        },
+      }
+    );
 
-    // === Run model on Replicate ===
-    const output = await replicate.run(model, {
-      input: {
-        prompt: prompt,
-        num_frames: 16, // عدد الإطارات (يمكنك تغييره إلى 24 أو 32)
-      },
-    });
-
-    // === Extract URL ===
     const videoUrl =
-      output?.video ||
-      (Array.isArray(output) ? output[0] : null) ||
-      null;
+      Array.isArray(output) ? output[0] : output?.video;
 
     if (!videoUrl) {
       return res.status(500).json({
         success: false,
-        message: "⚠️ No video URL returned from Replicate",
-        rawOutput: output,
+        message: "No video returned",
+        raw: output,
       });
     }
 
-    // === Success response ===
     res.json({
       success: true,
       videoUrl,
     });
+
   } catch (error) {
-    console.error("❌ Replicate error:", error);
+    console.error("Replicate error:", error);
     res.status(500).json({
       success: false,
       message: "Video generation failed",
