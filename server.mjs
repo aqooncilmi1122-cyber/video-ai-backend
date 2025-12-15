@@ -14,7 +14,7 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
-// ===== Test route =====
+// ===== Health check =====
 app.get("/", (req, res) => {
   res.json({ status: "API is running ✅" });
 });
@@ -31,6 +31,7 @@ app.post("/api/generate", async (req, res) => {
       });
     }
 
+    // ✅ VIDEO MODEL (IMPORTANT)
     const output = await replicate.run(
       "luma/reframe-video",
       {
@@ -40,9 +41,21 @@ app.post("/api/generate", async (req, res) => {
       }
     );
 
+    // Extract video URL safely
+    const videoUrl =
+      output?.video || (Array.isArray(output) ? output[0] : null);
+
+    if (!videoUrl) {
+      return res.status(500).json({
+        success: false,
+        message: "Video URL not returned from Replicate",
+        rawOutput: output,
+      });
+    }
+
     return res.json({
       success: true,
-      videoUrl: output,
+      videoUrl: videoUrl,
     });
 
   } catch (error) {
