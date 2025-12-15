@@ -12,56 +12,54 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
+// Health check
 app.get("/", (req, res) => {
-  res.json({ status: "API is running ✅" });
+  res.json({ status: "API running ✅" });
 });
 
+// TEXT → IMAGE → VIDEO
 app.post("/api/generate", async (req, res) => {
   try {
     const { prompt } = req.body;
-
     if (!prompt) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing prompt",
-      });
+      return res.status(400).json({ error: "Missing prompt" });
     }
 
-    const output = await replicate.run(
-      "luma/reframe-video",
+    // 1️⃣ Text → Image
+    const image = await replicate.run(
+      "black-forest-labs/flux-1.1-pro",
       {
         input: {
-          prompt: prompt,
+          prompt,
+          aspect_ratio: "16:9",
         },
       }
     );
 
-    const videoUrl =
-      output?.video ||
-      (Array.isArray(output) ? output[0] : null);
+    const imageUrl = image[0];
 
-    if (!videoUrl) {
-      return res.status(500).json({
-        success: false,
-        message: "No video returned",
-        raw: output,
-      });
-    }
+    // 2️⃣ Image → Video
+    const video = await replicate.run(
+      "stability-ai/stable-video-diffusion",
+      {
+        input: {
+          image: imageUrl,
+          motion_bucket_id: 127,
+        },
+      }
+    );
 
     res.json({
       success: true,
-      videoUrl,
+      image: imageUrl,
+      video: video[0],
     });
-
-  } catch (error) {
-    console.error("Replicate error:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on ${PORT}`)
+);
