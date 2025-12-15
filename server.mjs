@@ -13,52 +13,55 @@ const replicate = new Replicate({
 });
 
 app.get("/", (req, res) => {
-  res.json({ status: "API running ✅" });
+  res.json({ status: "API is running ✅" });
 });
 
 app.post("/api/generate", async (req, res) => {
   try {
     const { prompt } = req.body;
+
     if (!prompt) {
-      return res.status(400).json({ error: "Missing prompt" });
+      return res.status(400).json({
+        success: false,
+        message: "Missing prompt",
+      });
     }
 
-    // 1️⃣ Text → Image
-    const image = await replicate.run(
-      "black-forest-labs/flux-1.1-pro",
-      {
-        input: { prompt }
-      }
-    );
-
-    const imageUrl = image[0];
-
-    // 2️⃣ Image → Video
-    const video = await replicate.run(
-      "stability-ai/stable-video-diffusion",
+    const output = await replicate.run(
+      "luma/reframe-video",
       {
         input: {
-          image: imageUrl,
-          num_frames: 16,
+          prompt: prompt,
         },
       }
     );
 
+    const videoUrl =
+      output?.video ||
+      (Array.isArray(output) ? output[0] : null);
+
+    if (!videoUrl) {
+      return res.status(500).json({
+        success: false,
+        message: "No video returned",
+        raw: output,
+      });
+    }
+
     res.json({
       success: true,
-      image: imageUrl,
-      video: video[0],
+      videoUrl,
     });
 
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error("Replicate error:", error);
     res.status(500).json({
       success: false,
-      error: err.message,
+      error: error.message,
     });
   }
 });
 
-app.listen(PORT, () =>
-  console.log(`🚀 Server running on ${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
